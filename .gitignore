@@ -6,3 +6,5 @@
 .idea/
 
 aufgaben/__pycache__/
+
+*.pdf
