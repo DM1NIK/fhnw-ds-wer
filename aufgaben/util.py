@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import stats
 
+digits_of_precision = 4
+
 
 def get_norm_quantile(x):
     """
@@ -38,7 +40,20 @@ def get_sem(std, n):
     return std / math.sqrt(n)
 
 
-def visualize_z_test(T, q, side, significance):
+def viz_ztest(T, q, side, significance):
+    """
+    Visualizes the z-test for a given test statistic, critical value, side and significance level.
+    :param T: test statistic
+    :param q: critical value
+    :param side: one of "two", "left", "right"
+    :param significance: significance level
+    :return: None
+    """
+
+    T = round(T, digits_of_precision)
+    q = round(q, digits_of_precision)
+    significance, significance_2 = round(significance, digits_of_precision), round(significance / 2, digits_of_precision)
+
     x = np.linspace(stats.norm.ppf(0.0001), stats.norm.ppf(0.9999), 100)
     plt.figure(figsize=(8, 5))
     plt.plot(x, stats.norm.pdf(x))
@@ -47,22 +62,26 @@ def visualize_z_test(T, q, side, significance):
         plt.fill_between(x[x > q], 0, stats.norm.pdf(x)[x > q].flatten(), alpha=0.5, color='red')
         plt.fill_between(x[x < -q], 0, stats.norm.pdf(x)[x < -q].flatten(), alpha=0.5, color='red')
         plt.axvline(x=-T, color='r', linestyle='dashed')
-        plt.text(-q - 0.5, 0.05, 'Rejection region\n(' + str(significance / 2) + ')', fontsize=10)
+        plt.text(-q - 0.5, 0.05, 'Rejection region\n(' + str(significance_2) + ')', fontsize=10)
+        plt.text(q + 0.5, 0.05, 'Rejection region\n(' + str(significance_2) + ')', fontsize=10)
 
     elif side == "left":
         plt.fill_between(x[x < q], 0, stats.norm.pdf(x)[x < q].flatten(), alpha=0.5, color='red')
+        plt.text(q + 0.5, 0.05, 'Rejection region\n(' + str(significance) + ')', fontsize=10)
+
 
     elif side == "right":
         plt.fill_between(x[x > q], 0, stats.norm.pdf(x)[x > q].flatten(), alpha=0.5, color='red')
+        plt.text(q + 0.5, 0.05, 'Rejection region\n(' + str(significance) + ')', fontsize=10)
+
 
     plt.axvline(x=T, color='r', linestyle='dashed')
-    plt.title(f"Z-Test {side} sided (T={T}, q={q})")
+    plt.title(f"Z-Test {side} sided (T={T}, q={q}, a={significance}, side={side})")
 
-    plt.text(q + 0.5, 0.05, 'Rejection region\n(' + str(significance / 2) + ')', fontsize=10)
     plt.show()
 
 
-def calculate_z_test(n, u, u0, std0, significance, side="two", visualize=True):
+def calc_ztest(n, u, u0, std0, significance, side="two", visualize=True):
     """
     Calculates the z-test for a given sample size, sample mean, population mean, population standard deviation and alpha level.
     :param n: sample size
@@ -91,15 +110,38 @@ def calculate_z_test(n, u, u0, std0, significance, side="two", visualize=True):
         raise ValueError("side must be one of 'two', 'left', 'right'")
 
     if visualize:
-        visualize_z_test(test_statistic, critical_val, side, significance)
+        viz_ztest(test_statistic, critical_val, side, significance)
+
+    # p = 1 - stats.norm.cdf(test_statistic) # TODO: Check for two / left sided test
+
+    # Calculate p-value. Check for two / left sided test
+    if side == "two":
+        pvalue = 2 * (1 - stats.norm.cdf(abs(test_statistic)))
+    else:
+        pvalue = 1 - stats.norm.cdf(test_statistic)
 
     print("H0: " + ("rejected" if rejected else "not rejected"))
+    print("p-value: " + str(round(pvalue, digits_of_precision)))
+    print("test statistic: " + str(round(test_statistic, digits_of_precision)))
+    print("critical value: " + str(round(critical_val, digits_of_precision)))
 
-    p = 1 - stats.norm.cdf(test_statistic)
-    return test_statistic, critical_val, p
+    return test_statistic, critical_val, pvalue
 
 
-def visualize_t_test(test_statistic, critical_val, side, confidence_level):
+def viz_t_test(test_statistic, critical_val, side, significance, pvalue):
+    """
+    Visualizes the t-test for a given test statistic, critical value, side and significance level.
+    :param test_statistic: test statistic
+    :param critical_val: critical value
+    :param side: one of "two", "left", "right"
+    :param significance: significance level
+    :return: None
+    """
+
+    test_statistic = round(test_statistic, digits_of_precision)
+    critical_val = round(critical_val, digits_of_precision)
+    significance, significance_2 = round(significance, digits_of_precision), round(significance / 2, digits_of_precision)
+
     x = np.linspace(stats.t.ppf(0.0001, 29), stats.t.ppf(0.9999, 29), 100)
     plt.figure(figsize=(8, 5))
     plt.plot(x, stats.t.pdf(x, 29))
@@ -109,29 +151,39 @@ def visualize_t_test(test_statistic, critical_val, side, confidence_level):
         plt.fill_between(x[x < -critical_val], 0, stats.t.pdf(x, 29)[x < -critical_val].flatten(), alpha=0.5,
                          color='red')
         plt.axvline(x=-test_statistic, color='r', linestyle='dashed')
-        plt.text(-critical_val - 0.5, 0.05, 'Rejection region\n(' + str(confidence_level / 2) + ')', fontsize=10)
+        
+        plt.text(-critical_val - 0.5, 0.05, 'Rejection region\n(' + str(significance_2) + ')', fontsize=10)
+        plt.text(critical_val + 0.5, 0.05, 'Rejection region\n(' + str(significance_2) + ')', fontsize=10)
 
     elif side == "left":
         plt.fill_between(x[x < critical_val], 0, stats.t.pdf(x, 29)[x < critical_val].flatten(), alpha=0.5, color='red')
+        plt.text(critical_val + 0.5, 0.05, 'Rejection region\n(' + str(significance) + ')', fontsize=10)
 
     elif side == "right":
         plt.fill_between(x[x > critical_val], 0, stats.t.pdf(x, 29)[x > critical_val].flatten(), alpha=0.5, color='red')
+        plt.text(critical_val + 0.5, 0.05, 'Rejection region\n(' + str(significance) + ')', fontsize=10)
 
     plt.axvline(x=test_statistic, color='r', linestyle='dashed')
-    plt.title(f"T-Test {side} sided (T={test_statistic}, q={critical_val})")
+    plt.title(f"T-Test {side} sided (T={test_statistic}, q={critical_val}, a={significance}), p-value={pvalue}")
 
-    plt.text(critical_val + 0.5, 0.05, 'Rejection region\n(' + str(confidence_level / 2) + ')', fontsize=10)
     plt.show()
 
 
-def calculate_t_test(n, u, u0, std0, confidence_level, side="two", visualize=True):
+def calc_ttest_scipy(sample, u0, significance, alternative='two-sided'):
+    result = stats.ttest_1samp(sample, popmean=u0, alternative=alternative)
+    print("H0: " + ("rejected" if result[1] < significance else "not rejected"))
+
+    return result
+
+
+def calc_ttest(n, u, u0, std0, significance, side="two", visualize=True):
     """
     Calculates the t-test for a given sample size, sample mean, population mean, population standard deviation and alpha level.
     :param n: sample size
     :param u: sample mean
     :param u0: population mean
     :param std0: population standard deviation
-    :param confidence_level: alpha level
+    :param significance: alpha level
     :param side: one of "two", "left", "right"
     :param visualize: whether to visualize the test
     :return: test statistic, critical value, p-value
@@ -139,29 +191,38 @@ def calculate_t_test(n, u, u0, std0, confidence_level, side="two", visualize=Tru
 
     test_statistic = ((u - u0) / std0) * math.sqrt(n)
     if side == "two":
-        critical_val = stats.t.ppf(1 - confidence_level / 2, n - 1)
+        critical_val = stats.t.ppf(1 - significance / 2, n - 1)
         rejected = abs(test_statistic) > critical_val
 
     elif side == "left":
-        critical_val = -stats.t.ppf(1 - confidence_level, n - 1)
+        critical_val = -stats.t.ppf(1 - significance, n - 1)
         rejected = test_statistic < critical_val
 
     elif side == "right":
-        critical_val = stats.t.ppf(1 - confidence_level, n - 1)
+        critical_val = stats.t.ppf(1 - significance, n - 1)
         rejected = test_statistic > critical_val
     else:
         raise ValueError("side must be one of 'two', 'left', 'right'")
 
+    # Calculate p-value. Check the side of the test and calculate the p-value accordingly.
+    if side == "two":
+        pvalue = 2 * (1 - stats.t.cdf(abs(test_statistic), n - 1))
+    else:
+        pvalue = 1 - stats.t.cdf(test_statistic, n - 1)
+
     if visualize:
-        visualize_t_test(test_statistic, critical_val, side, confidence_level)
+        viz_t_test(test_statistic, critical_val, side, significance, pvalue)
+
 
     print("H0: " + ("rejected" if rejected else "not rejected"))
+    print("p-value: " + str(round(pvalue, digits_of_precision)))
+    print("test statistic: " + str(round(test_statistic, digits_of_precision)))
+    print("critical value: " + str(round(critical_val, digits_of_precision)))
+    
+    return test_statistic, critical_val, pvalue
 
-    p = 1 - stats.t.cdf(test_statistic, n - 1)
-    return test_statistic, critical_val, p
 
-
-def calculate_binomial_test(n, p0, p, confidence_level, side="two"):
+def calculate_binomial_test(n, p0, p, significance, side="two"):
     """
     Calculates the binomial test for a given sample size, sample probability, population probability and alpha level.
     Source: https://www.statisticshowto.com/probability-and-statistics/binomial-theorem/binomial-test/
@@ -175,15 +236,15 @@ def calculate_binomial_test(n, p0, p, confidence_level, side="two"):
 
     test_statistic = (p - p0) * math.sqrt(n / p0 * (1 - p0))
     if side == "two":
-        critical_val = stats.norm.ppf(1 - confidence_level / 2)
+        critical_val = stats.norm.ppf(1 - significance / 2)
         rejected = abs(test_statistic) > critical_val
 
     elif side == "left":
-        critical_val = -stats.norm.ppf(1 - confidence_level)
+        critical_val = -stats.norm.ppf(1 - significance)
         rejected = test_statistic < critical_val
 
     elif side == "right":
-        critical_val = stats.norm.ppf(1 - confidence_level)
+        critical_val = stats.norm.ppf(1 - significance)
         rejected = test_statistic > critical_val
     else:
         raise ValueError("side must be one of 'two', 'left', 'right'")
@@ -280,3 +341,21 @@ def binomial_coefficient(n, k):
     :return: binomial coefficient
     """
     return math.comb(n, k)
+
+
+def plot_cdf_discrete(distribution):
+    """
+    Plots the CDF for a given dictionary representing a discrete distribution.
+    :param distribution: dictionary representing a discrete distribution (keys are the values (int), values are the probabilities (int))
+    """
+    
+    x = list(sorted(distribution.keys()))
+    y = [distribution[key] for key in sorted(distribution.keys())]
+    cdf = np.cumsum(y)
+
+    plt.step(x, cdf, where="post")
+
+    plt.xlim(min(x) - 1, max(x) + 1)
+    plt.ylim(-.01, 1.01)
+
+    plt.show()
